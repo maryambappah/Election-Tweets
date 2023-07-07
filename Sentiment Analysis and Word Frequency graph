@@ -1,0 +1,93 @@
+# Loading file as csv
+text <- read.csv("C:\\Users\\KYELA GADI\\Desktop\\#NigeriaElections2023 - Twitter Search ~ Twitter new.csv", stringsAsFactors = FALSE)
+
+# Loading libraries 
+library(dplyr)
+library(stringr)
+# Data cleaning by removing special characters
+remove_reg <- "&amp;|&lt;|&gt;"
+text <- text %>%
+  mutate(Tweet = str_remove_all(Tweet, remove_reg)) %>%
+  mutate(Tweet = tolower(Tweet)) %>%
+  mutate(Tweet = str_replace_all(Tweet, regex("@\\w+"),"" )) %>%
+  mutate(Tweet = str_replace_all(Tweet, regex("http\\w+"),"" )) %>%
+  mutate(Tweet = str_replace_all(Tweet, regex("://t.co/\\w+"),"" ))%>%
+  mutate(Tweet = str_replace_all(Tweet, regex("<\\w+"),"" )) %>%
+  mutate(Tweet = str_replace_all(Tweet, regex("/+[a-zA-Z0-9<>]+"),"")) %>%
+  mutate(Tweet = str_replace_all(Tweet, regex("fa[a-zA-Z0-9+<>]+"),"" )) %>%
+  mutate(Tweet = str_replace_all(Tweet, regex("#[a-zA-Z0-9<>]+"),"" ))
+
+library(udpipe)
+#download and load the pre-trained models
+udmodel <- udpipe_download_model(language = "english")
+udmodel <- udpipe_load_model(file = udmodel$file_model)
+#annotate the data frame with uipipe model
+tidy_text <- udpipe_annotate(udmodel, x = text$text)
+tidy_text <- as.data.frame(tidy_text)
+library(tibble)
+library(tidytext)
+library
+install.packages("tm")
+library(tm)
+# Converting the tweet column to a corpus
+text_corpus <- Corpus(VectorSource(text$Tweet))
+#C Converting to lower case
+
+text_corpus <- tm_map(text_corpus, tolower)
+# More Data cleaning , removing top words 
+text_corpus <- tm_map(text_corpus, removeWords, 
+                      c("http", "rt", "re", "amp"))
+text_corpus <- tm_map(text_corpus, removeWords, 
+                      stopwords("english"))
+text_corpus <- tm_map(text_corpus, removePunctuation)
+text_df <- data.frame(text_clean = get("content", text_corpus), 
+                      stringsAsFactors = FALSE)
+newtext_df <- cbind.data.frame(text, text_df)
+# Load more libraries
+
+library(ggplot2)
+library(tidyverse)
+library(tidytext)
+#Inspect the clean column
+text_df%>%
+  pull(text_clean)
+# Seperate individual words 
+tidy_tweet <- text_df %>%
+  unnest_tokens(word, text_clean)
+tidy_tweet <- tidy_tweet %>%
+  anti_join(stop_words)
+# Create a bar chart of most frequent words
+tidy_tweet %>% 
+  count(word, sort = TRUE) %>%
+  top_n(15) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  labs(y = "Count",
+       x = "Unique words",
+       title = "Most frequent words found in Election Tweets",
+       subtitle = "Stop words removed from the list")                           
+
+
+#Creating a sentiment bar chart based on scores 
+install.packages("syuzhet")                              
+library(syuzhet)
+# Converting tweets to ASCII to trackle strange characters
+tidy_tweet <- iconv(tidy_tweet, from="UTF-8", to="ASCII", sub="")
+# removing retweets, in case needed 
+tidy_tweet <-gsub("(RT|via)((?:\\b\\w*@\\w+)+)","",tidy_tweet)
+# removing mentions, in case needed
+tidy_tweet <-gsub("@\\w+","",tidy_tweet)
+ew_sentiment<-get_nrc_sentiment((tidy_tweet))
+sentimentscores<-data.frame(colSums(ew_sentiment[,]))
+names(sentimentscores) <- "Score"
+sentimentscores <- cbind("sentiment"=rownames(sentimentscores),sentimentscores)
+rownames(sentimentscores) <- NULL
+ggplot(data=sentimentscores,aes(x=sentiment,y=Score))+
+  geom_bar(aes(fill=sentiment),stat = "identity")+
+  theme(legend.position="none")+
+  xlab("Sentiments")+ylab("Scores")+
+  ggtitle("Total sentiment based on scores")+
+  theme_minimal()
